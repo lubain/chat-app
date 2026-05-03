@@ -21,6 +21,10 @@ import { PresentationModule } from "./presentation/presentation.module";
         password: config.get("DB_PASSWORD", "postgres"),
         database: config.get("DB_NAME", "chat_db"),
         entities: [UserOrmEntity, ConversationOrmEntity, MessageOrmEntity],
+        ssl:
+          config.get("NODE_ENV") === "production"
+            ? { rejectUnauthorized: false } // ← obligatoire pour Neon
+            : false,
         synchronize: config.get("NODE_ENV") !== "production",
         logging: config.get("NODE_ENV") === "development",
       }),
