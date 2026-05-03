@@ -11,10 +11,10 @@ export class RedisPresenceService implements IPresenceService, OnModuleDestroy {
 
   constructor(private readonly config: ConfigService) {
     this.client = new Redis({
-      host: config.get("REDIS_HOST", "localhost"),
+      host: config.get("REDIS_HOST"),
       port: config.get<number>("REDIS_PORT", 6379),
       password: config.get("REDIS_PASSWORD"),
-      lazyConnect: true,
+      tls: config.get("NODE_ENV") === "production" ? {} : undefined,
     });
   }
 
