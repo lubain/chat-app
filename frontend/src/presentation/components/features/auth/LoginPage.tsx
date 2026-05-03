@@ -1,17 +1,34 @@
 import { useState } from "react";
-import { Mail, Lock, Eye, EyeOff, Send } from "lucide-react";
+import {
+  Mail,
+  Lock,
+  Eye,
+  EyeOff,
+  Send,
+  AlertCircle,
+  Loader2,
+} from "lucide-react";
 
 interface LoginPageProps {
-  onLogin: () => void;
+  onLogin: (email: string, password: string) => Promise<void>;
   onGoToRegister: () => void;
+  isLoading?: boolean;
+  error?: string | null;
 }
 
-export function LoginPage({ onLogin, onGoToRegister }: LoginPageProps) {
+export function LoginPage({
+  onLogin,
+  onGoToRegister,
+  isLoading,
+  error,
+}: LoginPageProps) {
+  const [email, setEmail] = useState("alex@exemple.com");
+  const [password, setPassword] = useState("password123");
   const [showPassword, setShowPassword] = useState(false);
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    onLogin();
+    await onLogin(email, password);
   };
 
   return (
@@ -28,6 +45,13 @@ export function LoginPage({ onLogin, onGoToRegister }: LoginPageProps) {
             </p>
           </div>
 
+          {error && (
+            <div className="mb-5 flex items-center gap-2 bg-red-50 border border-red-200 text-red-700 text-sm px-4 py-3 rounded-xl">
+              <AlertCircle className="w-4 h-4 flex-shrink-0" />
+              {error}
+            </div>
+          )}
+
           <form className="space-y-5" onSubmit={handleSubmit}>
             <div>
               <label className="block text-sm font-medium text-slate-700 mb-1.5">
@@ -39,9 +63,10 @@ export function LoginPage({ onLogin, onGoToRegister }: LoginPageProps) {
                 </div>
                 <input
                   type="email"
+                  value={email}
+                  onChange={(e) => setEmail(e.target.value)}
                   className="w-full pl-10 pr-4 py-3 bg-slate-50 border border-slate-200 rounded-xl focus:bg-white focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 transition-all outline-none"
                   placeholder="vous@exemple.com"
-                  defaultValue="alex@exemple.com"
                   required
                 />
               </div>
@@ -65,9 +90,10 @@ export function LoginPage({ onLogin, onGoToRegister }: LoginPageProps) {
                 </div>
                 <input
                   type={showPassword ? "text" : "password"}
+                  value={password}
+                  onChange={(e) => setPassword(e.target.value)}
                   className="w-full pl-10 pr-12 py-3 bg-slate-50 border border-slate-200 rounded-xl focus:bg-white focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 transition-all outline-none"
                   placeholder="••••••••"
-                  defaultValue="password123"
                   required
                 />
                 <button
@@ -86,9 +112,11 @@ export function LoginPage({ onLogin, onGoToRegister }: LoginPageProps) {
 
             <button
               type="submit"
-              className="w-full bg-indigo-600 text-white font-semibold py-3 rounded-xl hover:bg-indigo-700 transition-colors shadow-lg shadow-indigo-200 flex items-center justify-center mt-2"
+              disabled={isLoading}
+              className="w-full bg-indigo-600 text-white font-semibold py-3 rounded-xl hover:bg-indigo-700 disabled:opacity-60 disabled:cursor-not-allowed transition-colors shadow-lg shadow-indigo-200 flex items-center justify-center gap-2 mt-2"
             >
-              Se connecter
+              {isLoading && <Loader2 className="w-4 h-4 animate-spin" />}
+              {isLoading ? "Connexion…" : "Se connecter"}
             </button>
           </form>
 

@@ -1,4 +1,3 @@
-import { Contact } from "@/domain/entities";
 import {
   Phone,
   Video,
@@ -8,9 +7,10 @@ import {
   Sun,
   LogOut,
 } from "lucide-react";
+import { ChatContact } from "@/application/stores/useChatStore";
 
 interface ChatHeaderProps {
-  activeContact: Contact;
+  activeContact: ChatContact;
   isMenuOpen: boolean;
   isDarkMode: boolean;
   onToggleMenu: (open: boolean) => void;
@@ -65,7 +65,6 @@ export function ChatHeader({
           <Video className="w-5 h-5" />
         </button>
         <div className="w-px h-6 bg-slate-200 mx-1" />
-
         <div className="relative">
           <button
             onClick={() => onToggleMenu(!isMenuOpen)}
@@ -73,9 +72,8 @@ export function ChatHeader({
           >
             <MoreVertical className="w-5 h-5" />
           </button>
-
           {isMenuOpen && (
-            <div className="absolute right-0 mt-2 w-48 bg-white rounded-xl shadow-lg border border-slate-100 py-2 z-50 overflow-hidden">
+            <div className="absolute right-0 mt-2 w-48 bg-white rounded-xl shadow-lg border border-slate-100 py-2 z-50">
               <button
                 onClick={() => {
                   onToggleDarkMode();
