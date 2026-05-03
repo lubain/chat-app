@@ -22,8 +22,8 @@ export function LoginPage({
   isLoading,
   error,
 }: LoginPageProps) {
-  const [email, setEmail] = useState("alex@exemple.com");
-  const [password, setPassword] = useState("password123");
+  const [email, setEmail] = useState("");
+  const [password, setPassword] = useState("");
   const [showPassword, setShowPassword] = useState(false);
 
   const handleSubmit = async (e: React.FormEvent) => {
