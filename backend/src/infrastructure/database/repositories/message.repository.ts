@@ -35,7 +35,7 @@ export class MessageRepository implements IMessageRepository {
     });
 
     // Return in chronological order
-    return rows.reverse().map((r) => this.toDomain(r));
+    return rows.reverse().map((r: MessageOrmEntity) => this.toDomain(r));
   }
 
   async save(message: Message): Promise<Message> {

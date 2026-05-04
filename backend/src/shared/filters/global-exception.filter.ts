@@ -18,14 +18,19 @@ export class GlobalExceptionFilter implements ExceptionFilter {
     const request = ctx.getRequest<Request>();
 
     let status = HttpStatus.INTERNAL_SERVER_ERROR;
-    let message = "Internal server error";
+    let message: string | string[] = "Internal server error";
 
     if (exception instanceof HttpException) {
       status = exception.getStatus();
       const res = exception.getResponse();
-      message = typeof res === "string" ? res : (res as any).message || message;
+      message =
+        typeof res === "string"
+          ? res
+          : (res as { message: string | string[] }).message || message;
     } else if (exception instanceof Error) {
       this.logger.error(exception.message, exception.stack);
+    } else {
+      this.logger.error("Unknown exception", String(exception));
     }
 
     response.status(status).json({
