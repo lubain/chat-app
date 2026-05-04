@@ -9,9 +9,10 @@
     "start:dev": "ts-node-dev --respawn --transpile-only -r tsconfig-paths/register src/main.ts",
     "start:prod": "node dist/main",
     "typeorm": "ts-node -r tsconfig-paths/register ./node_modules/typeorm/cli",
-    "migration:generate": "npm run typeorm -- migration:generate src/infrastructure/database/migrations/Migration",
+    "migration:generate": "npm run typeorm -- migration:generate src/infrastructure/database/migrations/Migration -d src/shared/config/typeorm.config.ts",
     "migration:run": "npm run typeorm -- migration:run -d src/shared/config/typeorm.config.ts",
     "migration:revert": "npm run typeorm -- migration:revert -d src/shared/config/typeorm.config.ts",
+    "migration:show": "npm run typeorm -- migration:show -d src/shared/config/typeorm.config.ts",
     "test": "echo \"No tests configured yet\""
   },
   "dependencies": {
@@ -31,6 +32,7 @@
     "cache-manager-ioredis": "^2.1.0",
     "class-transformer": "^0.5.1",
     "class-validator": "^0.15.1",
+    "dotenv": "^16.0.0",
     "ioredis": "^5.10.1",
     "passport": "^0.7.0",
     "passport-jwt": "^4.0.1",

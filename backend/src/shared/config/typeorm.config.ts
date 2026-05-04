@@ -6,6 +6,8 @@ import { MessageOrmEntity } from "../../infrastructure/database/entities/message
 
 dotenv.config();
 
+const isProd = process.env.NODE_ENV === "production";
+
 export default new DataSource({
   type: "postgres",
   host: process.env.DB_HOST || "localhost",
@@ -13,6 +15,8 @@ export default new DataSource({
   username: process.env.DB_USER || "postgres",
   password: process.env.DB_PASSWORD || "postgres",
   database: process.env.DB_NAME || "chat_db",
+  // SSL obligatoire pour Neon
+  ssl: isProd ? { rejectUnauthorized: false } : false,
   entities: [UserOrmEntity, ConversationOrmEntity, MessageOrmEntity],
   migrations: ["src/infrastructure/database/migrations/*.ts"],
   synchronize: false,
