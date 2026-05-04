@@ -1,15 +1,18 @@
-import { Injectable } from '@nestjs/common';
-import { InjectRepository } from '@nestjs/typeorm';
-import { LessThan, Repository } from 'typeorm';
-import { Message, MessageStatus } from '../../../domain/entities/message.entity';
-import { IMessageRepository } from '../../../domain/repositories/message.repository.interface';
-import { MessageOrmEntity } from '../entities/message.orm-entity';
+import { Injectable } from "@nestjs/common";
+import { InjectRepository } from "@nestjs/typeorm";
+import { LessThan, Repository } from "typeorm";
+import {
+  Message,
+  MessageStatus,
+} from "../../../domain/entities/message.entity";
+import { IMessageRepository } from "../../../domain/repositories/message.repository.interface";
+import { MessageOrmEntity } from "../entities/message.orm-entity";
 
 @Injectable()
 export class MessageRepository implements IMessageRepository {
   constructor(
     @InjectRepository(MessageOrmEntity)
-    private readonly repo: Repository<MessageOrmEntity>,
+    private readonly repo: Repository<MessageOrmEntity>
   ) {}
 
   async findById(id: string): Promise<Message | null> {
@@ -20,14 +23,14 @@ export class MessageRepository implements IMessageRepository {
   async findByConversationId(
     conversationId: string,
     limit = 50,
-    before?: Date,
+    before?: Date
   ): Promise<Message[]> {
     const where: any = { conversationId };
     if (before) where.createdAt = LessThan(before);
 
     const rows = await this.repo.find({
       where,
-      order: { createdAt: 'DESC' },
+      order: { createdAt: "DESC" },
       take: limit,
     });
 
@@ -47,14 +50,17 @@ export class MessageRepository implements IMessageRepository {
     return message;
   }
 
-  async markConversationAsRead(conversationId: string, userId: string): Promise<void> {
+  async markConversationAsRead(
+    conversationId: string,
+    userId: string
+  ): Promise<void> {
     await this.repo
       .createQueryBuilder()
       .update(MessageOrmEntity)
       .set({ status: MessageStatus.READ })
-      .where('conversationId = :conversationId', { conversationId })
-      .andWhere('senderId != :userId', { userId })
-      .andWhere('status != :status', { status: MessageStatus.READ })
+      .where("conversationId = :conversationId", { conversationId })
+      .andWhere("senderId != :userId", { userId })
+      .andWhere("status != :status", { status: MessageStatus.READ })
       .execute();
   }
 
@@ -75,7 +81,7 @@ export class MessageRepository implements IMessageRepository {
       row.content,
       row.status as MessageStatus,
       row.createdAt,
-      row.updatedAt,
+      row.updatedAt
     );
   }
 

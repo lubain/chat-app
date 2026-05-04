@@ -37,6 +37,7 @@ import {
     credentials: true,
   },
   namespace: "/chat",
+  transports: ["websocket", "polling"],
 })
 export class ChatGateway implements OnGatewayConnection, OnGatewayDisconnect {
   @WebSocketServer() server: Server;
