@@ -1,8 +1,9 @@
-import { useRef, useEffect } from "react";
+import { useState, useRef, useEffect } from "react";
 import { Search, Lock, X, Loader2, UserPlus, Users } from "lucide-react";
 import { ChatContact } from "@/application/stores/useChatStore";
 import { UserSearchResult } from "@/infrastructure/api/conversation.api";
 import { useUserSearch } from "@/application/hooks/useUserSearch";
+import { ProfileModal } from "@/presentation/components/shared/ProfileModal";
 
 interface CurrentUser {
   id: string;
@@ -32,10 +33,10 @@ export function ContactList({
 }: ContactListProps) {
   const { query, setQuery, results, isLoading, error, clear } =
     useUserSearch(300);
+  const [isProfileOpen, setIsProfileOpen] = useState(false);
   const inputRef = useRef<HTMLInputElement>(null);
   const isSearching = query.trim().length > 0;
 
-  // Close search on Escape
   useEffect(() => {
     const handler = (e: KeyboardEvent) => {
       if (e.key === "Escape" && isSearching) clear();
@@ -44,7 +45,6 @@ export function ContactList({
     return () => window.removeEventListener("keydown", handler);
   }, [isSearching, clear]);
 
-  // Filter existing conversations locally when not in user-search mode
   const filteredContacts = isSearching
     ? []
     : contacts.filter(
@@ -60,9 +60,13 @@ export function ContactList({
 
   return (
     <>
-      {/* ── Header profil ──────────────────────────────────────────── */}
+      {/* ── Header profil ─────────────────────────────────────────── */}
       <div className="p-4 bg-white border-b border-slate-200 flex items-center justify-between flex-shrink-0">
-        <div className="flex items-center space-x-3">
+        {/* Avatar cliquable → ouvre ProfileModal */}
+        <button
+          onClick={() => setIsProfileOpen(true)}
+          className="flex items-center space-x-3 group"
+        >
           <div className="relative">
             <img
               src={
@@ -70,17 +74,18 @@ export function ContactList({
                 `https://i.pravatar.cc/150?u=${currentUser.id}`
               }
               alt="Profile"
-              className="w-10 h-10 rounded-full object-cover border border-slate-200"
+              className="w-10 h-10 rounded-full object-cover border-2 border-transparent group-hover:border-indigo-400 transition-all"
             />
             <div className="absolute bottom-0 right-0 w-3 h-3 bg-green-500 border-2 border-white rounded-full" />
           </div>
-          <div>
-            <h2 className="font-semibold text-slate-900 text-sm">
+          <div className="text-left">
+            <h2 className="font-semibold text-slate-900 text-sm group-hover:text-indigo-600 transition-colors">
               {currentUser.name}
             </h2>
-            <p className="text-xs text-slate-500">Mon profil</p>
+            <p className="text-xs text-slate-400">Voir le profil</p>
           </div>
-        </div>
+        </button>
+
         <button
           onClick={onLogout}
           title="Déconnexion"
@@ -93,7 +98,6 @@ export function ContactList({
       {/* ── Barre de recherche ─────────────────────────────────────── */}
       <div className="p-3 bg-white border-b border-slate-100 flex-shrink-0">
         <div className="relative">
-          {/* Icône gauche : loader ou loupe */}
           <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
             {isLoading ? (
               <Loader2 className="w-4 h-4 text-indigo-400 animate-spin" />
@@ -101,7 +105,6 @@ export function ContactList({
               <Search className="w-4 h-4 text-slate-400" />
             )}
           </div>
-
           <input
             ref={inputRef}
             type="text"
@@ -110,8 +113,6 @@ export function ContactList({
             placeholder="Rechercher ou démarrer une conv…"
             className="w-full pl-9 pr-9 py-2.5 bg-slate-100 rounded-xl text-sm border border-transparent focus:bg-white focus:border-indigo-400 focus:ring-2 focus:ring-indigo-100 outline-none transition-all placeholder:text-slate-400"
           />
-
-          {/* Bouton clear */}
           {isSearching && (
             <button
               onClick={() => {
@@ -124,8 +125,6 @@ export function ContactList({
             </button>
           )}
         </div>
-
-        {/* Hint sous la barre */}
         {isSearching && !isLoading && !error && (
           <p className="text-[11px] text-slate-400 mt-1.5 px-1">
             {results.length > 0
@@ -140,12 +139,11 @@ export function ContactList({
         )}
       </div>
 
-      {/* ── Liste principale ───────────────────────────────────────── */}
+      {/* ── Liste principale ────────────────────────────────────────── */}
       <div className="flex-1 overflow-y-auto">
-        {/* ── Mode recherche : résultats utilisateurs ── */}
+        {/* Mode recherche */}
         {isSearching && (
           <>
-            {/* Section titre */}
             <div className="flex items-center gap-2 px-4 py-2 bg-slate-50 border-b border-slate-100">
               <UserPlus className="w-3.5 h-3.5 text-slate-400" />
               <span className="text-[11px] font-semibold text-slate-400 uppercase tracking-wide">
@@ -153,7 +151,6 @@ export function ContactList({
               </span>
             </div>
 
-            {/* Loading skeleton */}
             {isLoading && (
               <div className="space-y-0">
                 {[1, 2, 3].map((i) => (
@@ -171,7 +168,6 @@ export function ContactList({
               </div>
             )}
 
-            {/* Résultats */}
             {!isLoading &&
               results.map((user) => (
                 <button
@@ -208,7 +204,6 @@ export function ContactList({
                 </button>
               ))}
 
-            {/* Aucun résultat */}
             {!isLoading && results.length === 0 && !error && (
               <div className="flex flex-col items-center py-12 px-4 text-center">
                 <div className="w-12 h-12 bg-slate-100 rounded-full flex items-center justify-center mb-3">
@@ -225,7 +220,7 @@ export function ContactList({
           </>
         )}
 
-        {/* ── Mode normal : liste des conversations ── */}
+        {/* Mode normal */}
         {!isSearching && (
           <>
             {contacts.length > 0 && (
@@ -316,6 +311,11 @@ export function ContactList({
           </>
         )}
       </div>
+
+      <ProfileModal
+        isOpen={isProfileOpen}
+        onClose={() => setIsProfileOpen(false)}
+      />
     </>
   );
 }

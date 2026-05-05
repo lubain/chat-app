@@ -1,17 +1,9 @@
 import { create } from "zustand";
-import { authApi, AuthResponse } from "@/infrastructure/api/auth.api";
+import { authApi, AuthResponse, AuthUser } from "@/infrastructure/api/auth.api";
 import {
   connectSocket,
   disconnectSocket,
 } from "@/infrastructure/socket/socket-client";
-
-interface AuthUser {
-  id: string;
-  name: string;
-  email: string;
-  avatarUrl: string;
-  status: string;
-}
 
 interface AuthState {
   user: AuthUser | null;
@@ -24,11 +16,16 @@ interface AuthState {
   logout: () => void;
   clearError: () => void;
   hydrateFromStorage: () => void;
+  updateUser: (user: AuthUser) => void;
 }
 
 function persistAuth(response: AuthResponse) {
   localStorage.setItem("access_token", response.accessToken);
   localStorage.setItem("auth_user", JSON.stringify(response.user));
+}
+
+function persistUser(user: AuthUser) {
+  localStorage.setItem("auth_user", JSON.stringify(user));
 }
 
 function clearAuth() {
@@ -68,7 +65,7 @@ export const useAuthStore = create<AuthState>((set) => ({
         isLoading: false,
       });
     } catch (err: any) {
-      const message = err.response?.data?.message?.[0] ?? "Login failed";
+      const message = err.messages?.[0] ?? err.message ?? "Login failed";
       set({ error: message, isLoading: false });
       throw err;
     }
@@ -86,7 +83,7 @@ export const useAuthStore = create<AuthState>((set) => ({
         isLoading: false,
       });
     } catch (err: any) {
-      const message = err.response?.data?.message?.[0] ?? "Registration failed";
+      const message = err.messages?.[0] ?? err.message ?? "Registration failed";
       set({ error: message, isLoading: false });
       throw err;
     }
@@ -96,6 +93,12 @@ export const useAuthStore = create<AuthState>((set) => ({
     clearAuth();
     disconnectSocket();
     set({ user: null, token: null });
+  },
+
+  /** Met à jour l'utilisateur en mémoire et dans localStorage */
+  updateUser: (user: AuthUser) => {
+    persistUser(user);
+    set({ user });
   },
 
   clearError: () => set({ error: null }),
