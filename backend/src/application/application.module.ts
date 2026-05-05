@@ -9,6 +9,7 @@ import { UserOrmEntity } from "../infrastructure/database/entities/user.orm-enti
 import { RegisterUserUseCase } from "./use-cases/auth/register-user.use-case";
 import { LoginUserUseCase } from "./use-cases/auth/login-user.use-case";
 import { LogoutUserUseCase } from "./use-cases/auth/logout-user.use-case";
+import { UpdateProfileUseCase } from "./use-cases/auth/update-profile.use-case";
 
 // Chat use cases
 import { SendMessageUseCase } from "./use-cases/chat/send-message.use-case";
@@ -36,6 +37,7 @@ import { GetUsersUseCase } from "./use-cases/user/get-users.use-case";
     RegisterUserUseCase,
     LoginUserUseCase,
     LogoutUserUseCase,
+    UpdateProfileUseCase,
     SendMessageUseCase,
     GetConversationsUseCase,
     GetMessagesUseCase,
@@ -47,6 +49,7 @@ import { GetUsersUseCase } from "./use-cases/user/get-users.use-case";
     RegisterUserUseCase,
     LoginUserUseCase,
     LogoutUserUseCase,
+    UpdateProfileUseCase,
     SendMessageUseCase,
     GetConversationsUseCase,
     GetMessagesUseCase,
