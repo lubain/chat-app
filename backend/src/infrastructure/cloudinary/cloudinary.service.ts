@@ -12,31 +12,25 @@ export class CloudinaryService {
     this.uploadPreset = config.get<string>("CLOUDINARY_UPLOAD_PRESET", "");
 
     if (!this.cloudName || !this.uploadPreset) {
-      this.logger.warn(
-        "⚠️  Cloudinary not configured — CLOUDINARY_CLOUD_NAME or CLOUDINARY_UPLOAD_PRESET missing"
-      );
+      this.logger.warn("⚠️  Cloudinary not configured");
     }
   }
 
-  async uploadAvatar(base64Data: string, userId: string): Promise<string> {
+  async uploadAvatar(base64Data: string, _userId: string): Promise<string> {
     if (!this.cloudName || !this.uploadPreset) {
       throw new BadRequestException(
         "Avatar upload not available: Cloudinary is not configured."
       );
     }
 
-    this.logger.log(`Uploading avatar for user ${userId}...`);
+    this.logger.log(`Uploading avatar...`);
 
     const url = `https://api.cloudinary.com/v1_1/${this.cloudName}/image/upload`;
 
-    // Unsigned upload — only allowed params:
-    // upload_preset, public_id, folder, tags, context, metadata, source, filename_override
+    // Unsigned upload — only file + upload_preset (minimal params, no slash issues)
     const body = new URLSearchParams();
     body.append("file", base64Data);
     body.append("upload_preset", this.uploadPreset);
-    body.append("folder", "chat-app-avatars");
-    body.append("public_id", `avatar_${userId}`); // nom du fichier = userId (écrase l'ancien)
-    body.append("tags", "avatar");
 
     let response: Response;
     try {
