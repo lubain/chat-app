@@ -70,10 +70,19 @@ export class AuthController {
     @CurrentUser() user: JwtPayload,
     @Body() body: { base64: string }
   ): Promise<ProfileResponseDto> {
+    console.log("UPLOAD AVATAR CALLED");
+    console.log("USER:", user);
+    console.log("BODY:", body?.base64?.slice(0, 50)); // preview
+
+    if (!body?.base64) {
+      throw new Error("base64 missing");
+    }
+
     const avatarUrl = await this.cloudinaryService.uploadAvatar(
       body.base64,
       user.sub
     );
+
     return this.updateProfileUseCase.execute(user.sub, { avatarUrl });
   }
 }
