@@ -6,12 +6,13 @@ import { GlobalExceptionFilter } from "./shared/filters/global-exception.filter"
 import { LoggingInterceptor } from "./shared/interceptors/logging.interceptor";
 
 async function bootstrap() {
-  const app = await NestFactory.create(AppModule);
+  const app = await NestFactory.create(AppModule, {
+    // Augmenter la limite du body pour les images base64 (10MB)
+    bodyParser: true,
+  });
 
   app.setGlobalPrefix("api/v1");
 
-  // Accepte plusieurs origines séparées par une virgule
-  // Ex: FRONTEND_URL=https://app.vercel.app,http://localhost:5173
   const allowedOrigins = (process.env.FRONTEND_URL || "http://localhost:5173")
     .split(",")
     .map((o) => o.trim());
@@ -21,7 +22,6 @@ async function bootstrap() {
       origin: string | undefined,
       callback: (err: Error | null, allow?: boolean) => void
     ) => {
-      // Autoriser les requêtes sans origin (Postman, curl, mobile)
       if (!origin) return callback(null, true);
       if (allowedOrigins.includes(origin)) return callback(null, true);
       callback(new Error(`CORS blocked: ${origin}`));
@@ -30,6 +30,10 @@ async function bootstrap() {
     methods: ["GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"],
     allowedHeaders: ["Content-Type", "Authorization"],
   });
+
+  // Augmenter la limite JSON à 10MB pour les images base64
+  app.use(require("express").json({ limit: "10mb" }));
+  app.use(require("express").urlencoded({ extended: true, limit: "10mb" }));
 
   app.useGlobalPipes(
     new ValidationPipe({
@@ -46,8 +50,13 @@ async function bootstrap() {
   await app.listen(port, "0.0.0.0");
 
   console.log(`🚀 Server running on http://localhost:${port}/api/v1`);
-  console.log(`🔌 WebSocket available on ws://localhost:${port}/chat`);
-  console.log(`✅ CORS allowed origins: ${allowedOrigins.join(", ")}`);
+  console.log(`🔌 WebSocket: ws://localhost:${port}/chat`);
+  console.log(`✅ CORS: ${allowedOrigins.join(", ")}`);
+  console.log(
+    `☁️  Cloudinary: ${
+      process.env.CLOUDINARY_CLOUD_NAME ? "✅ configured" : "❌ NOT configured"
+    }`
+  );
 }
 
 bootstrap();

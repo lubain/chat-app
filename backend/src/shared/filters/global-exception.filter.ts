@@ -10,7 +10,7 @@ import { Request, Response } from "express";
 
 @Catch()
 export class GlobalExceptionFilter implements ExceptionFilter {
-  private readonly logger = new Logger(GlobalExceptionFilter.name);
+  private readonly logger = new Logger("ExceptionFilter");
 
   catch(exception: unknown, host: ArgumentsHost): void {
     const ctx = host.switchToHttp();
@@ -27,10 +27,31 @@ export class GlobalExceptionFilter implements ExceptionFilter {
         typeof res === "string"
           ? res
           : (res as { message: string | string[] }).message || message;
+
+      // Log 4xx as warnings, 5xx as errors
+      if (status >= 500) {
+        this.logger.error(
+          `${request.method} ${request.url} → ${status}: ${JSON.stringify(
+            message
+          )}`
+        );
+      } else {
+        this.logger.warn(
+          `${request.method} ${request.url} → ${status}: ${JSON.stringify(
+            message
+          )}`
+        );
+      }
     } else if (exception instanceof Error) {
-      this.logger.error(exception.message, exception.stack);
+      this.logger.error(
+        `${request.method} ${request.url} → UNHANDLED: ${exception.message}`,
+        exception.stack
+      );
     } else {
-      this.logger.error("Unknown exception", String(exception));
+      this.logger.error(
+        `Unknown exception on ${request.url}`,
+        String(exception)
+      );
     }
 
     response.status(status).json({
