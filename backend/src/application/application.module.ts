@@ -4,6 +4,7 @@ import { ConfigModule, ConfigService } from "@nestjs/config";
 import { TypeOrmModule } from "@nestjs/typeorm";
 import { InfrastructureModule } from "../infrastructure/infrastructure.module";
 import { UserOrmEntity } from "../infrastructure/database/entities/user.orm-entity";
+import { CloudinaryService } from "../infrastructure/cloudinary/cloudinary.service";
 
 // Auth use cases
 import { RegisterUserUseCase } from "./use-cases/auth/register-user.use-case";
@@ -34,14 +35,18 @@ import { GetUsersUseCase } from "./use-cases/user/get-users.use-case";
     }),
   ],
   providers: [
+    // Auth
     RegisterUserUseCase,
     LoginUserUseCase,
     LogoutUserUseCase,
     UpdateProfileUseCase,
+    CloudinaryService,
+    // Chat
     SendMessageUseCase,
     GetConversationsUseCase,
     GetMessagesUseCase,
     CreateConversationUseCase,
+    // User
     GetUsersUseCase,
   ],
   exports: [
@@ -50,6 +55,7 @@ import { GetUsersUseCase } from "./use-cases/user/get-users.use-case";
     LoginUserUseCase,
     LogoutUserUseCase,
     UpdateProfileUseCase,
+    CloudinaryService,
     SendMessageUseCase,
     GetConversationsUseCase,
     GetMessagesUseCase,
