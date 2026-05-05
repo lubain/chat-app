@@ -21,22 +21,22 @@ export class CloudinaryService {
   async uploadAvatar(base64Data: string, userId: string): Promise<string> {
     if (!this.cloudName || !this.uploadPreset) {
       throw new BadRequestException(
-        "Avatar upload not available: Cloudinary is not configured on this server."
+        "Avatar upload not available: Cloudinary is not configured."
       );
     }
 
-    this.logger.log(`Uploading avatar for user ${userId} to Cloudinary...`);
+    this.logger.log(`Uploading avatar for user ${userId}...`);
 
     const url = `https://api.cloudinary.com/v1_1/${this.cloudName}/image/upload`;
 
-    // Use FormData-style multipart — handles large base64 better than URLSearchParams
+    // Unsigned upload — only allowed params:
+    // upload_preset, public_id, folder, tags, context, metadata, source, filename_override
     const body = new URLSearchParams();
     body.append("file", base64Data);
     body.append("upload_preset", this.uploadPreset);
-    body.append("public_id", `chat-app/avatars/${userId}`);
-    body.append("overwrite", "true");
-    body.append("invalidate", "true"); // purge CDN cache for same public_id
-    body.append("transformation", "w_200,h_200,c_fill,g_face,q_auto,f_webp"); // resize + optimize
+    body.append("folder", "chat-app/avatars");
+    body.append("public_id", userId); // nom du fichier = userId (écrase l'ancien)
+    body.append("tags", "avatar");
 
     let response: Response;
     try {
@@ -47,9 +47,7 @@ export class CloudinaryService {
       });
     } catch (networkErr) {
       this.logger.error("Network error reaching Cloudinary", networkErr);
-      throw new BadRequestException(
-        "Could not reach Cloudinary. Check network."
-      );
+      throw new BadRequestException("Could not reach Cloudinary.");
     }
 
     if (!response.ok) {
@@ -60,10 +58,7 @@ export class CloudinaryService {
       );
     }
 
-    const data = (await response.json()) as {
-      secure_url: string;
-      public_id: string;
-    };
+    const data = (await response.json()) as { secure_url: string };
     this.logger.log(`Avatar uploaded: ${data.secure_url}`);
     return data.secure_url;
   }
