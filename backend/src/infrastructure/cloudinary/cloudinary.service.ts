@@ -1,36 +1,64 @@
 import { Injectable, BadRequestException, Logger } from "@nestjs/common";
 import { ConfigService } from "@nestjs/config";
+import * as crypto from "crypto";
 
 @Injectable()
 export class CloudinaryService {
   private readonly logger = new Logger(CloudinaryService.name);
   private readonly cloudName: string;
-  private readonly uploadPreset: string;
+  private readonly apiKey: string;
+  private readonly apiSecret: string;
 
   constructor(private readonly config: ConfigService) {
     this.cloudName = config.get<string>("CLOUDINARY_CLOUD_NAME", "");
-    this.uploadPreset = config.get<string>("CLOUDINARY_UPLOAD_PRESET", "");
+    this.apiKey = config.get<string>("CLOUDINARY_API_KEY", "");
+    this.apiSecret = config.get<string>("CLOUDINARY_API_SECRET", "");
 
-    if (!this.cloudName || !this.uploadPreset) {
-      this.logger.warn("⚠️  Cloudinary not configured");
+    if (!this.cloudName || !this.apiKey || !this.apiSecret) {
+      this.logger.warn(
+        "⚠️  Cloudinary not fully configured (CLOUD_NAME / API_KEY / API_SECRET)"
+      );
     }
   }
 
-  async uploadAvatar(base64Data: string, _userId: string): Promise<string> {
-    if (!this.cloudName || !this.uploadPreset) {
+  async uploadAvatar(base64Data: string, userId: string): Promise<string> {
+    if (!this.cloudName || !this.apiKey || !this.apiSecret) {
       throw new BadRequestException(
         "Avatar upload not available: Cloudinary is not configured."
       );
     }
 
-    this.logger.log(`Uploading avatar...`);
+    const timestamp = Math.round(Date.now() / 1000).toString();
+    const publicId = `avatar_${userId.replace(/-/g, "")}`;
+    const folder = "chat-app-avatars";
+
+    // Signature HMAC-SHA1 sur les paramètres triés alphabétiquement
+    const paramsToSign = [
+      `folder=${folder}`,
+      `overwrite=true`,
+      `public_id=${publicId}`,
+      `timestamp=${timestamp}`,
+    ]
+      .sort()
+      .join("&");
+
+    const signature = crypto
+      .createHash("sha1")
+      .update(paramsToSign + this.apiSecret)
+      .digest("hex");
 
     const url = `https://api.cloudinary.com/v1_1/${this.cloudName}/image/upload`;
+    const body = new URLSearchParams({
+      file: base64Data,
+      api_key: this.apiKey,
+      timestamp,
+      signature,
+      public_id: publicId,
+      folder,
+      overwrite: "true",
+    });
 
-    // Unsigned upload — only file + upload_preset (minimal params, no slash issues)
-    const body = new URLSearchParams();
-    body.append("file", base64Data);
-    body.append("upload_preset", this.uploadPreset);
+    this.logger.log(`Uploading avatar (signed) for user ${userId}...`);
 
     let response: Response;
     try {
@@ -39,8 +67,8 @@ export class CloudinaryService {
         headers: { "Content-Type": "application/x-www-form-urlencoded" },
         body: body.toString(),
       });
-    } catch (networkErr) {
-      this.logger.error("Network error reaching Cloudinary", networkErr);
+    } catch (err) {
+      this.logger.error("Network error reaching Cloudinary", err);
       throw new BadRequestException("Could not reach Cloudinary.");
     }
 
@@ -48,7 +76,7 @@ export class CloudinaryService {
       const errText = await response.text();
       this.logger.error(`Cloudinary error ${response.status}: ${errText}`);
       throw new BadRequestException(
-        `Cloudinary upload failed (${response.status}): ${errText}`
+        `Upload failed (${response.status}): ${errText}`
       );
     }
 
