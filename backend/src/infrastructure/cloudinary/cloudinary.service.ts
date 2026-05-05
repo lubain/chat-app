@@ -34,8 +34,8 @@ export class CloudinaryService {
     const body = new URLSearchParams();
     body.append("file", base64Data);
     body.append("upload_preset", this.uploadPreset);
-    body.append("folder", "chat-app/avatars");
-    body.append("public_id", userId); // nom du fichier = userId (écrase l'ancien)
+    body.append("folder", "chat-app-avatars");
+    body.append("public_id", `avatar_${userId}`); // nom du fichier = userId (écrase l'ancien)
     body.append("tags", "avatar");
 
     let response: Response;
