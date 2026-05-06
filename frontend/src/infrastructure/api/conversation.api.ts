@@ -29,6 +29,8 @@ export interface MessageResponse {
   senderId: string;
   content: string;
   status: "sent" | "delivered" | "read";
+  messageType?: "text" | "image";
+  imageUrl?: string | null;
   createdAt: string;
 }
 
