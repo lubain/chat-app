@@ -32,7 +32,12 @@ export function ProfileModal({ isOpen, onClose }: ProfileModalProps) {
       setSaved(false);
       clearError();
     }
-  }, [isOpen, user]);
+  }, [isOpen, user, clearError]);
+
+  const handleCancel = useCallback(() => {
+    if (draft.avatarPreview) URL.revokeObjectURL(draft.avatarPreview);
+    onClose();
+  }, [draft.avatarPreview, onClose]);
 
   // Escape pour fermer (si pas de chargement en cours)
   useEffect(() => {
@@ -42,7 +47,7 @@ export function ProfileModal({ isOpen, onClose }: ProfileModalProps) {
     };
     window.addEventListener("keydown", handler);
     return () => window.removeEventListener("keydown", handler);
-  }, [isOpen, isLoading]);
+  }, [isOpen, isLoading, handleCancel]);
 
   if (!isOpen || !user) return null;
 
@@ -74,11 +79,6 @@ export function ProfileModal({ isOpen, onClose }: ProfileModalProps) {
   };
 
   // ── Annuler : remettre le draft à l'état initial ─────────────────────────
-  const handleCancel = useCallback(() => {
-    if (draft.avatarPreview) URL.revokeObjectURL(draft.avatarPreview);
-    onClose();
-  }, [draft.avatarPreview, onClose]);
-
   // ── Enregistrer : envoyer tout en une fois ───────────────────────────────
   const handleSave = async () => {
     if (!hasChanges) {
