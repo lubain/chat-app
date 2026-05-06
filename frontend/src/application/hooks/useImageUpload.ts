@@ -1,8 +1,7 @@
 import { useState, useCallback, useRef } from "react";
-import { conversationApi } from "@/infrastructure/api/conversation.api";
-import { useChatStore } from "@/application//stores/useChatStore";
+import { conversationApi } from "../../infrastructure/api/conversation.api";
+import { useChatStore } from "../stores/useChatStore";
 
-/** Converts a File to a base64 data URL */
 function fileToBase64(file: File): Promise<string> {
   return new Promise((resolve, reject) => {
     const reader = new FileReader();
@@ -12,14 +11,20 @@ function fileToBase64(file: File): Promise<string> {
   });
 }
 
+export interface PendingImage {
+  file: File;
+  preview: string; // URL locale object URL
+}
+
 interface UseImageUploadResult {
   isUploading: boolean;
   error: string | null;
-  preview: string | null;
+  pendingImage: PendingImage | null; // image sélectionnée mais pas encore envoyée
   fileInputRef: React.RefObject<HTMLInputElement | null>;
   openFilePicker: () => void;
   handleFileChange: (e: React.ChangeEvent<HTMLInputElement>) => void;
-  clearPreview: () => void;
+  sendPendingImage: () => Promise<void>; // envoi explicite
+  cancelPendingImage: () => void; // annuler la sélection
   clearError: () => void;
 }
 
@@ -28,23 +33,21 @@ export function useImageUpload(
 ): UseImageUploadResult {
   const [isUploading, setIsUploading] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [preview, setPreview] = useState<string | null>(null);
+  const [pendingImage, setPendingImage] = useState<PendingImage | null>(null);
   const fileInputRef = useRef<HTMLInputElement | null>(null);
-  const addMessage = useChatStore((s) => s.receiveMessage);
+  const receiveMessage = useChatStore((s) => s.receiveMessage);
 
   const openFilePicker = useCallback(() => {
     fileInputRef.current?.click();
   }, []);
 
+  // Sélection du fichier → preview locale uniquement, pas d'upload
   const handleFileChange = useCallback(
-    async (e: React.ChangeEvent<HTMLInputElement>) => {
+    (e: React.ChangeEvent<HTMLInputElement>) => {
       const file = e.target.files?.[0];
-      if (!file || !conversationId) return;
+      e.target.value = ""; // reset pour permettre re-sélection du même fichier
+      if (!file) return;
 
-      // Reset input so same file can be re-selected
-      e.target.value = "";
-
-      // Validate
       if (!file.type.startsWith("image/")) {
         setError("Le fichier doit être une image (PNG, JPG, GIF, WEBP).");
         return;
@@ -54,48 +57,63 @@ export function useImageUpload(
         return;
       }
 
-      // Local preview immediately
-      const localUrl = URL.createObjectURL(file);
-      setPreview(localUrl);
-      setIsUploading(true);
+      // Libérer l'ancienne preview si elle existe
+      if (pendingImage?.preview) URL.revokeObjectURL(pendingImage.preview);
+
+      const preview = URL.createObjectURL(file);
+      setPendingImage({ file, preview });
       setError(null);
-
-      try {
-        const base64 = await fileToBase64(file);
-        const message = await conversationApi.uploadImage(
-          conversationId,
-          base64
-        );
-
-        // Add to store — will be broadcast by WS but we add it locally too
-        addMessage({
-          ...message,
-          messageType: message.messageType as "text" | "image",
-          imageUrl: message.imageUrl ?? null,
-          createdAt:
-            typeof message.createdAt === "string"
-              ? message.createdAt
-              : new Date(message.createdAt).toISOString(),
-        });
-      } catch (err: any) {
-        setError(err.messages?.[0] ?? "Impossible d'envoyer l'image.");
-      } finally {
-        setIsUploading(false);
-        setPreview(null);
-        URL.revokeObjectURL(localUrl);
-      }
     },
-    [conversationId, addMessage]
+    [pendingImage]
   );
+
+  // Envoi explicite (bouton Envoyer)
+  const sendPendingImage = useCallback(async () => {
+    if (!pendingImage || !conversationId) return;
+
+    setIsUploading(true);
+    setError(null);
+
+    try {
+      const base64 = await fileToBase64(pendingImage.file);
+      const message = await conversationApi.uploadImage(conversationId, base64);
+
+      receiveMessage({
+        ...message,
+        messageType: (message as any).messageType ?? "image",
+        imageUrl: (message as any).imageUrl ?? null,
+        createdAt:
+          typeof message.createdAt === "string"
+            ? message.createdAt
+            : new Date(message.createdAt).toISOString(),
+      });
+
+      // Nettoyage après envoi réussi
+      URL.revokeObjectURL(pendingImage.preview);
+      setPendingImage(null);
+    } catch (err: any) {
+      setError(err.messages?.[0] ?? "Impossible d'envoyer l'image.");
+    } finally {
+      setIsUploading(false);
+    }
+  }, [pendingImage, conversationId, receiveMessage]);
+
+  // Annuler la sélection
+  const cancelPendingImage = useCallback(() => {
+    if (pendingImage?.preview) URL.revokeObjectURL(pendingImage.preview);
+    setPendingImage(null);
+    setError(null);
+  }, [pendingImage]);
 
   return {
     isUploading,
     error,
-    preview,
+    pendingImage,
     fileInputRef,
     openFilePicker,
     handleFileChange,
-    clearPreview: () => setPreview(null),
+    sendPendingImage,
+    cancelPendingImage,
     clearError: () => setError(null),
   };
 }

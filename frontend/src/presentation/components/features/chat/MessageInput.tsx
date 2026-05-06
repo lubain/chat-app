@@ -1,7 +1,7 @@
 import { useState } from "react";
-import { Send, Smile, Paperclip, Loader2, X, Image } from "lucide-react";
-import { useTyping } from "@/application/hooks/useTyping";
-import { useImageUpload } from "@/application/hooks/useImageUpload";
+import { Send, Smile, Image, X, Loader2 } from "lucide-react";
+import { useTyping } from "../../../../application/hooks/useTyping";
+import { useImageUpload } from "../../../../application/hooks/useImageUpload";
 
 interface MessageInputProps {
   conversationId: string | null;
@@ -14,10 +14,12 @@ export function MessageInput({ conversationId, onSend }: MessageInputProps) {
   const {
     isUploading,
     error,
-    preview,
+    pendingImage,
     fileInputRef,
     openFilePicker,
     handleFileChange,
+    sendPendingImage,
+    cancelPendingImage,
     clearError,
   } = useImageUpload(conversationId);
 
@@ -26,7 +28,7 @@ export function MessageInput({ conversationId, onSend }: MessageInputProps) {
     if (e.target.value.trim()) onKeystroke();
   };
 
-  const submit = () => {
+  const submitText = () => {
     if (!text.trim()) return;
     onMessageSent();
     onSend(text);
@@ -36,36 +38,74 @@ export function MessageInput({ conversationId, onSend }: MessageInputProps) {
   const handleKeyDown = (e: React.KeyboardEvent<HTMLTextAreaElement>) => {
     if (e.key === "Enter" && !e.shiftKey) {
       e.preventDefault();
-      submit();
+      submitText();
     }
+  };
+
+  const handleSendImage = async () => {
+    await sendPendingImage();
   };
 
   return (
     <div className="bg-white border-t border-slate-200 flex-shrink-0">
-      {/* ── Preview d'upload ─────────────────────────────────── */}
-      {(preview || isUploading) && (
-        <div className="px-4 pt-3 flex items-center gap-3">
-          <div className="relative w-16 h-16 rounded-xl overflow-hidden border border-slate-200 bg-slate-100 flex-shrink-0">
-            {preview && (
+      {/* ── Preview image en attente ───────────────────────────── */}
+      {pendingImage && (
+        <div className="px-4 pt-3 pb-1">
+          <div className="flex items-center gap-3 p-3 bg-slate-50 border border-slate-200 rounded-2xl">
+            {/* Miniature */}
+            <div className="relative w-16 h-16 rounded-xl overflow-hidden flex-shrink-0 border border-slate-200">
               <img
-                src={preview}
+                src={pendingImage.preview}
                 alt="preview"
                 className="w-full h-full object-cover"
               />
-            )}
-            {isUploading && (
-              <div className="absolute inset-0 bg-black/40 flex items-center justify-center">
-                <Loader2 className="w-5 h-5 text-white animate-spin" />
-              </div>
-            )}
-          </div>
-          <div className="text-xs text-slate-500">
-            {isUploading ? "Envoi en cours…" : "Prêt à envoyer"}
+              {isUploading && (
+                <div className="absolute inset-0 bg-black/50 flex items-center justify-center">
+                  <Loader2 className="w-5 h-5 text-white animate-spin" />
+                </div>
+              )}
+            </div>
+
+            <div className="flex-1 min-w-0">
+              <p className="text-sm font-medium text-slate-800 truncate">
+                {pendingImage.file.name}
+              </p>
+              <p className="text-xs text-slate-400 mt-0.5">
+                {(pendingImage.file.size / 1024 / 1024).toFixed(2)} Mo
+              </p>
+            </div>
+
+            {/* Actions : Annuler / Envoyer */}
+            <div className="flex items-center gap-2 flex-shrink-0">
+              <button
+                onClick={cancelPendingImage}
+                disabled={isUploading}
+                className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-semibold text-slate-600 bg-white border border-slate-200 hover:bg-slate-100 disabled:opacity-40 transition-colors"
+              >
+                <X className="w-3.5 h-3.5" />
+                Annuler
+              </button>
+              <button
+                onClick={handleSendImage}
+                disabled={isUploading}
+                className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-semibold text-white bg-indigo-600 hover:bg-indigo-700 disabled:opacity-60 transition-colors shadow-sm shadow-indigo-200"
+              >
+                {isUploading ? (
+                  <>
+                    <Loader2 className="w-3.5 h-3.5 animate-spin" /> Envoi…
+                  </>
+                ) : (
+                  <>
+                    <Send className="w-3.5 h-3.5" /> Envoyer
+                  </>
+                )}
+              </button>
+            </div>
           </div>
         </div>
       )}
 
-      {/* ── Erreur upload ────────────────────────────────────── */}
+      {/* ── Erreur ──────────────────────────────────────────────── */}
       {error && (
         <div className="mx-4 mt-2 flex items-center gap-2 bg-red-50 border border-red-200 text-red-600 text-xs px-3 py-2 rounded-xl">
           <span className="flex-1">{error}</span>
@@ -75,9 +115,8 @@ export function MessageInput({ conversationId, onSend }: MessageInputProps) {
         </div>
       )}
 
-      {/* ── Zone de saisie ───────────────────────────────────── */}
+      {/* ── Zone de saisie texte ─────────────────────────────────── */}
       <div className="p-4">
-        {/* Input file caché */}
         <input
           ref={fileInputRef}
           type="file"
@@ -89,7 +128,7 @@ export function MessageInput({ conversationId, onSend }: MessageInputProps) {
         <form
           onSubmit={(e) => {
             e.preventDefault();
-            submit();
+            submitText();
           }}
           className="flex items-end space-x-2"
         >
@@ -105,39 +144,36 @@ export function MessageInput({ conversationId, onSend }: MessageInputProps) {
               value={text}
               onChange={handleChange}
               onKeyDown={handleKeyDown}
-              placeholder="Écrivez un message…"
+              placeholder={
+                pendingImage ? "Ajouter un message…" : "Écrivez un message…"
+              }
               rows={1}
-              className="flex-1 max-h-32 bg-transparent border-none focus:ring-0 resize-none py-3 px-2 text-sm outline-none text-slate-800"
+              disabled={isUploading}
+              className="flex-1 max-h-32 bg-transparent border-none focus:ring-0 resize-none py-3 px-2 text-sm outline-none text-slate-800 disabled:opacity-50"
             />
 
-            {/* Bouton image */}
+            {/* Bouton sélection image */}
             <button
               type="button"
               onClick={openFilePicker}
-              disabled={isUploading}
-              title="Envoyer une image"
-              className="p-3 text-slate-400 hover:text-indigo-600 disabled:opacity-40 transition-colors"
+              disabled={isUploading || !!pendingImage}
+              title="Joindre une image"
+              className={`p-3 transition-colors ${
+                pendingImage
+                  ? "text-indigo-500"
+                  : "text-slate-400 hover:text-indigo-600"
+              } disabled:opacity-40`}
             >
-              {isUploading ? (
-                <Loader2 className="w-5 h-5 animate-spin text-indigo-400" />
-              ) : (
-                <Image className="w-5 h-5" />
-              )}
-            </button>
-
-            <button
-              type="button"
-              className="p-3 text-slate-400 hover:text-indigo-600 transition-colors"
-            >
-              <Paperclip className="w-5 h-5" />
+              <Image className="w-5 h-5" />
             </button>
           </div>
 
+          {/* Bouton envoi texte */}
           <button
             type="submit"
-            disabled={!text.trim()}
+            disabled={!text.trim() || isUploading}
             className={`p-3 rounded-full flex-shrink-0 transition-all ${
-              text.trim()
+              text.trim() && !isUploading
                 ? "bg-indigo-600 text-white hover:bg-indigo-700 shadow-md shadow-indigo-200 active:scale-95"
                 : "bg-slate-100 text-slate-400"
             }`}

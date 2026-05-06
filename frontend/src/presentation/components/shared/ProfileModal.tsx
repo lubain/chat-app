@@ -1,15 +1,10 @@
-import { useState, useRef, useEffect } from "react";
+import { useState, useRef, useEffect, useCallback } from "react";
+import { X, Camera, Loader2, Check, AlertCircle, User } from "lucide-react";
 import {
-  X,
-  Camera,
-  Loader2,
-  Check,
-  AlertCircle,
-  Pencil,
-  User,
-} from "lucide-react";
-import { useUpdateProfile } from "@/application/hooks/useUpdateProfile";
-import { useAuth } from "@/application/hooks/useAuth";
+  useUpdateProfile,
+  ProfileDraft,
+} from "../../../application/hooks/useUpdateProfile";
+import { useAuth } from "../../../application/hooks/useAuth";
 
 interface ProfileModalProps {
   isOpen: boolean;
@@ -18,129 +13,137 @@ interface ProfileModalProps {
 
 export function ProfileModal({ isOpen, onClose }: ProfileModalProps) {
   const { user } = useAuth();
-  const { isLoading, error, updateName, uploadAvatar, clearError } =
+  const { isLoading, error, prepareAvatar, saveProfile, clearError } =
     useUpdateProfile();
 
-  const [name, setName] = useState(user?.name ?? "");
-  const [previewUrl, setPreviewUrl] = useState<string | null>(null);
+  // ── Draft local — rien n'est envoyé tant qu'on ne clique pas Enregistrer ──
+  const [draft, setDraft] = useState<ProfileDraft>({
+    name: user?.name ?? "",
+    avatarFile: null,
+    avatarPreview: null,
+  });
   const [saved, setSaved] = useState(false);
-  const [isEditingName, setIsEditingName] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
-  const nameInputRef = useRef<HTMLInputElement>(null);
 
-  // Sync name when user changes
+  // Réinitialiser le draft à chaque ouverture
   useEffect(() => {
-    if (user) setName(user.name);
-  }, [user]);
+    if (isOpen && user) {
+      setDraft({ name: user.name, avatarFile: null, avatarPreview: null });
+      setSaved(false);
+      clearError();
+    }
+  }, [isOpen, user]);
 
-  // Focus name input when editing starts
-  useEffect(() => {
-    if (isEditingName) nameInputRef.current?.focus();
-  }, [isEditingName]);
-
-  // Close on Escape
+  // Escape pour fermer (si pas de chargement en cours)
   useEffect(() => {
     if (!isOpen) return;
     const handler = (e: KeyboardEvent) => {
-      if (e.key === "Escape") onClose();
+      if (e.key === "Escape" && !isLoading) handleCancel();
     };
     window.addEventListener("keydown", handler);
     return () => window.removeEventListener("keydown", handler);
-  }, [isOpen, onClose]);
+  }, [isOpen, isLoading]);
 
   if (!isOpen || !user) return null;
 
-  const showSuccess = () => {
-    setSaved(true);
-    setTimeout(() => setSaved(false), 2000);
-  };
-
-  // ── Avatar selection ────────────────────────────────────────────────────────
-  const handleFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    if (!file) return;
-
-    // Show local preview immediately
-    const localUrl = URL.createObjectURL(file);
-    setPreviewUrl(localUrl);
-
-    await uploadAvatar(file);
-    if (!error) showSuccess();
-  };
-
-  // ── Name update ─────────────────────────────────────────────────────────────
-  const handleNameSave = async () => {
-    if (name.trim() === user.name) {
-      setIsEditingName(false);
-      return;
-    }
-    await updateName(name);
-    setIsEditingName(false);
-    if (!error) showSuccess();
-  };
-
-  const handleNameKeyDown = (e: React.KeyboardEvent) => {
-    if (e.key === "Enter") handleNameSave();
-    if (e.key === "Escape") {
-      setName(user.name);
-      setIsEditingName(false);
-    }
-  };
+  const hasChanges =
+    draft.name.trim() !== user.name || draft.avatarFile !== null;
 
   const avatarSrc =
-    previewUrl ?? user.avatarUrl ?? `https://i.pravatar.cc/150?u=${user.id}`;
+    draft.avatarPreview ??
+    user.avatarUrl ??
+    `https://i.pravatar.cc/150?u=${user.id}`;
+
+  // ── Sélection d'image : preview locale uniquement ────────────────────────
+  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    e.target.value = ""; // reset input
+    if (!file) return;
+
+    const result = prepareAvatar(file);
+    if (!result) return;
+
+    // Libérer l'ancienne preview si existante
+    if (draft.avatarPreview) URL.revokeObjectURL(draft.avatarPreview);
+
+    setDraft((d) => ({
+      ...d,
+      avatarFile: result.file,
+      avatarPreview: result.preview,
+    }));
+  };
+
+  // ── Annuler : remettre le draft à l'état initial ─────────────────────────
+  const handleCancel = useCallback(() => {
+    if (draft.avatarPreview) URL.revokeObjectURL(draft.avatarPreview);
+    onClose();
+  }, [draft.avatarPreview, onClose]);
+
+  // ── Enregistrer : envoyer tout en une fois ───────────────────────────────
+  const handleSave = async () => {
+    if (!hasChanges) {
+      onClose();
+      return;
+    }
+
+    const success = await saveProfile(draft);
+    if (success) {
+      if (draft.avatarPreview) URL.revokeObjectURL(draft.avatarPreview);
+      setSaved(true);
+      setTimeout(() => {
+        setSaved(false);
+        onClose();
+      }, 1200);
+    }
+  };
 
   return (
     <div
       className="fixed inset-0 z-50 flex items-center justify-center p-4"
-      onClick={onClose}
+      onClick={!isLoading ? handleCancel : undefined}
     >
-      <div className="absolute inset-0 bg-slate-900/40 backdrop-blur-sm" />
+      <div className="absolute inset-0 bg-slate-900/40 backdrop-blur-sm animate-in fade-in duration-150" />
 
       <div
-        className="relative bg-white rounded-2xl shadow-2xl w-full max-w-sm overflow-hidden"
+        className="relative bg-white rounded-2xl shadow-2xl w-full max-w-sm overflow-hidden animate-in zoom-in-95 fade-in duration-200"
         onClick={(e) => e.stopPropagation()}
       >
-        {/* ── En-tête gradient ──────────────────────────────────────── */}
+        {/* ── Gradient header ───────────────────────────────────── */}
         <div className="h-24 bg-gradient-to-br from-indigo-500 to-indigo-700" />
 
-        {/* Bouton fermer */}
+        {/* Bouton fermer (×) */}
         <button
-          onClick={onClose}
-          className="absolute top-3 right-3 p-1.5 text-white/70 hover:text-white hover:bg-white/20 rounded-full transition-colors"
+          onClick={handleCancel}
+          disabled={isLoading}
+          className="absolute top-3 right-3 p-1.5 text-white/70 hover:text-white hover:bg-white/20 rounded-full transition-colors disabled:opacity-40"
         >
           <X className="w-4 h-4" />
         </button>
 
-        {/* ── Avatar + upload ───────────────────────────────────────── */}
         <div className="px-6 pb-6">
-          <div className="flex items-end justify-between -mt-12 mb-5">
-            {/* Avatar avec bouton caméra */}
+          {/* ── Avatar ──────────────────────────────────────────── */}
+          <div className="flex items-end justify-between -mt-12 mb-6">
             <div className="relative group">
               <div className="w-24 h-24 rounded-2xl border-4 border-white shadow-md overflow-hidden bg-slate-100">
-                {isLoading && previewUrl ? (
-                  <div className="w-full h-full flex items-center justify-center bg-slate-200">
-                    <Loader2 className="w-6 h-6 text-indigo-400 animate-spin" />
-                  </div>
-                ) : (
-                  <img
-                    src={avatarSrc}
-                    alt={user.name}
-                    className="w-full h-full object-cover"
-                  />
-                )}
+                <img
+                  src={avatarSrc}
+                  alt={user.name}
+                  className="w-full h-full object-cover"
+                />
               </div>
 
-              {/* Overlay caméra au hover */}
+              {/* Overlay caméra */}
               <button
                 onClick={() => fileInputRef.current?.click()}
                 disabled={isLoading}
-                className="absolute inset-0 rounded-2xl bg-black/40 opacity-0 group-hover:opacity-100 flex items-center justify-center transition-opacity disabled:cursor-not-allowed"
+                className="absolute inset-0 rounded-2xl bg-black/40 opacity-0 group-hover:opacity-100 flex flex-col items-center justify-center gap-1 transition-opacity disabled:cursor-not-allowed"
               >
-                <Camera className="w-6 h-6 text-white" />
+                <Camera className="w-5 h-5 text-white" />
+                <span className="text-white text-[10px] font-medium">
+                  Changer
+                </span>
               </button>
 
-              {/* Input file caché */}
               <input
                 ref={fileInputRef}
                 type="file"
@@ -150,56 +153,39 @@ export function ProfileModal({ isOpen, onClose }: ProfileModalProps) {
               />
             </div>
 
+            {/* Badge "image sélectionnée" */}
+            {draft.avatarFile && !saved && (
+              <div className="flex items-center gap-1.5 bg-indigo-50 text-indigo-600 text-xs font-semibold px-3 py-1.5 rounded-full border border-indigo-200">
+                <Camera className="w-3 h-3" />
+                Nouvelle photo
+              </div>
+            )}
+
             {/* Badge succès */}
             {saved && (
               <div className="flex items-center gap-1.5 bg-green-50 text-green-600 text-xs font-semibold px-3 py-1.5 rounded-full border border-green-200">
                 <Check className="w-3.5 h-3.5" />
-                Enregistré
+                Enregistré !
               </div>
             )}
           </div>
 
-          {/* ── Nom ───────────────────────────────────────────────── */}
+          {/* ── Nom ─────────────────────────────────────────────── */}
           <div className="mb-4">
             <label className="text-xs font-semibold text-slate-400 uppercase tracking-wide mb-1.5 flex items-center gap-1.5">
               <User className="w-3.5 h-3.5" />
               Nom affiché
             </label>
-
-            {isEditingName ? (
-              <div className="flex gap-2">
-                <input
-                  ref={nameInputRef}
-                  type="text"
-                  value={name}
-                  onChange={(e) => setName(e.target.value)}
-                  onKeyDown={handleNameKeyDown}
-                  maxLength={50}
-                  className="flex-1 px-3 py-2 bg-slate-50 border border-indigo-300 rounded-xl text-sm font-medium text-slate-900 focus:outline-none focus:ring-2 focus:ring-indigo-200"
-                />
-                <button
-                  onClick={handleNameSave}
-                  disabled={isLoading || !name.trim()}
-                  className="px-3 py-2 bg-indigo-600 text-white rounded-xl hover:bg-indigo-700 disabled:opacity-50 transition-colors"
-                >
-                  {isLoading ? (
-                    <Loader2 className="w-4 h-4 animate-spin" />
-                  ) : (
-                    <Check className="w-4 h-4" />
-                  )}
-                </button>
-              </div>
-            ) : (
-              <button
-                onClick={() => setIsEditingName(true)}
-                className="w-full flex items-center justify-between px-3 py-2.5 bg-slate-50 hover:bg-slate-100 border border-slate-200 rounded-xl transition-colors group"
-              >
-                <span className="text-sm font-medium text-slate-900">
-                  {user.name}
-                </span>
-                <Pencil className="w-3.5 h-3.5 text-slate-400 group-hover:text-indigo-500 transition-colors" />
-              </button>
-            )}
+            <input
+              type="text"
+              value={draft.name}
+              onChange={(e) =>
+                setDraft((d) => ({ ...d, name: e.target.value }))
+              }
+              disabled={isLoading}
+              maxLength={50}
+              className="w-full px-3 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-sm font-medium text-slate-900 focus:outline-none focus:ring-2 focus:ring-indigo-200 focus:border-indigo-400 transition-all disabled:opacity-60"
+            />
           </div>
 
           {/* ── Email (lecture seule) ────────────────────────────── */}
@@ -212,19 +198,44 @@ export function ProfileModal({ isOpen, onClose }: ProfileModalProps) {
             </div>
           </div>
 
-          {/* ── Erreur ─────────────────────────────────────────── */}
+          {/* ── Erreur ──────────────────────────────────────────── */}
           {error && (
             <div className="flex items-center gap-2 bg-red-50 border border-red-200 text-red-600 text-sm px-3 py-2.5 rounded-xl mb-4">
               <AlertCircle className="w-4 h-4 flex-shrink-0" />
-              <span>{error}</span>
-              <button onClick={clearError} className="ml-auto">
+              <span className="flex-1">{error}</span>
+              <button onClick={clearError}>
                 <X className="w-3.5 h-3.5" />
               </button>
             </div>
           )}
 
-          {/* ── Hint avatar ───────────────────────────────────── */}
-          <p className="text-center text-xs text-slate-400">
+          {/* ── Boutons Annuler / Enregistrer ───────────────────── */}
+          <div className="flex gap-3">
+            <button
+              onClick={handleCancel}
+              disabled={isLoading}
+              className="flex-1 py-2.5 px-4 rounded-xl text-sm font-semibold text-slate-700 bg-slate-100 hover:bg-slate-200 transition-colors disabled:opacity-50"
+            >
+              Annuler
+            </button>
+            <button
+              onClick={handleSave}
+              disabled={isLoading || !hasChanges}
+              className="flex-1 py-2.5 px-4 rounded-xl text-sm font-semibold text-white bg-indigo-600 hover:bg-indigo-700 disabled:opacity-40 disabled:cursor-not-allowed transition-all flex items-center justify-center gap-2 shadow-lg shadow-indigo-200"
+            >
+              {isLoading ? (
+                <>
+                  <Loader2 className="w-4 h-4 animate-spin" /> Enregistrement…
+                </>
+              ) : (
+                <>
+                  <Check className="w-4 h-4" /> Enregistrer
+                </>
+              )}
+            </button>
+          </div>
+
+          <p className="text-center text-xs text-slate-400 mt-3">
             Cliquez sur la photo pour changer l'avatar · Max 5 Mo
           </p>
         </div>

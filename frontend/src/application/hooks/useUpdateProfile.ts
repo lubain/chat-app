@@ -2,15 +2,22 @@ import { useState, useCallback } from "react";
 import { authApi } from "../../infrastructure/api/auth.api";
 import { useAuthStore } from "../stores/useAuthStore";
 
+export interface ProfileDraft {
+  name: string;
+  avatarFile: File | null;
+  avatarPreview: string | null; // URL locale pour preview
+}
+
 interface UseUpdateProfileResult {
   isLoading: boolean;
   error: string | null;
-  updateName: (name: string) => Promise<void>;
-  uploadAvatar: (file: File) => Promise<void>;
+  /** Valide le fichier image et retourne une preview locale sans uploader */
+  prepareAvatar: (file: File) => { preview: string; file: File } | null;
+  /** Enregistre le draft (nom + avatar) en une seule opération */
+  saveProfile: (draft: ProfileDraft) => Promise<boolean>;
   clearError: () => void;
 }
 
-/** Converts a File to a base64 data URL string */
 function fileToBase64(file: File): Promise<string> {
   return new Promise((resolve, reject) => {
     const reader = new FileReader();
@@ -25,51 +32,59 @@ export function useUpdateProfile(): UseUpdateProfileResult {
   const [error, setError] = useState<string | null>(null);
   const updateUser = useAuthStore((s) => s.updateUser);
 
-  const updateName = useCallback(async (name: string) => {
-    const trimmed = name.trim();
-    if (!trimmed) return;
-    setIsLoading(true);
-    setError(null);
-    try {
-      const updated = await authApi.updateProfile({ name: trimmed });
-      updateUser(updated);
-    } catch (err: any) {
-      setError(err.messages?.[0] ?? "Impossible de mettre à jour le nom.");
-    } finally {
-      setIsLoading(false);
-    }
-  }, [updateUser]);
-
-  const uploadAvatar = useCallback(async (file: File) => {
-    // Validate file type
+  /** Valide le fichier et génère la preview locale — sans uploader */
+  const prepareAvatar = useCallback((file: File) => {
     if (!file.type.startsWith("image/")) {
       setError("Le fichier doit être une image.");
-      return;
+      return null;
     }
-    // Validate file size (max 5MB)
     if (file.size > 5 * 1024 * 1024) {
       setError("L'image ne doit pas dépasser 5 Mo.");
-      return;
+      return null;
     }
+    const preview = URL.createObjectURL(file);
+    return { preview, file };
+  }, []);
 
-    setIsLoading(true);
-    setError(null);
-    try {
-      const base64 = await fileToBase64(file);
-      const updated = await authApi.uploadAvatar(base64);
-      updateUser(updated);
-    } catch (err: any) {
-      setError(err.messages?.[0] ?? "Impossible d'uploader l'avatar.");
-    } finally {
-      setIsLoading(false);
-    }
-  }, [updateUser]);
+  /** Envoie nom + avatar si modifiés, en une seule action */
+  const saveProfile = useCallback(
+    async (draft: ProfileDraft): Promise<boolean> => {
+      const { name, avatarFile } = draft;
+      setIsLoading(true);
+      setError(null);
+
+      try {
+        let updated = null;
+
+        // 1. Upload avatar si un fichier a été sélectionné
+        if (avatarFile) {
+          const base64 = await fileToBase64(avatarFile);
+          updated = await authApi.uploadAvatar(base64);
+        }
+
+        // 2. Mettre à jour le nom si modifié
+        const trimmedName = name.trim();
+        if (trimmedName && trimmedName !== (updated?.name ?? "")) {
+          updated = await authApi.updateProfile({ name: trimmedName });
+        }
+
+        if (updated) updateUser(updated);
+        return true;
+      } catch (err: any) {
+        setError(err.messages?.[0] ?? "Impossible d'enregistrer le profil.");
+        return false;
+      } finally {
+        setIsLoading(false);
+      }
+    },
+    [updateUser]
+  );
 
   return {
     isLoading,
     error,
-    updateName,
-    uploadAvatar,
+    prepareAvatar,
+    saveProfile,
     clearError: () => setError(null),
   };
 }
