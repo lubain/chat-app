@@ -130,6 +130,18 @@ export const conversationApi = {
   markAsRead: async (conversationId: string): Promise<void> => {
     await patch(`/conversations/${conversationId}/read`);
   },
+  /**
+   * POST /conversations/:id/images
+   * Upload base64 image → Cloudinary via backend → returns the new message
+   */
+  uploadImage: async (
+    conversationId: string,
+    base64: string
+  ): Promise<MessageResponse> => {
+    return post<MessageResponse>(`/conversations/${conversationId}/images`, {
+      base64,
+    });
+  },
 };
 
 // ─── Users API ────────────────────────────────────────────────────────────────
@@ -174,3 +186,5 @@ export const usersApi = {
     });
   },
 };
+
+// Already defined at top — just add the image upload method

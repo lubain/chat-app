@@ -24,6 +24,8 @@ export interface ChatMessage {
   senderId: string;
   content: string;
   status: string;
+  messageType: "text" | "image";
+  imageUrl: string | null;
   createdAt: string;
 }
 
@@ -81,6 +83,8 @@ function toMessage(m: MessageResponse): ChatMessage {
     senderId: m.senderId,
     content: m.content,
     status: m.status,
+    messageType: (m as any).messageType ?? "text",
+    imageUrl: (m as any).imageUrl ?? null,
     createdAt: m.createdAt,
   };
 }
@@ -163,6 +167,8 @@ export const useChatStore = create<ChatState>((set, get) => ({
       senderId: currentUserId,
       content: content.trim(),
       status: "sent",
+      messageType: "text",
+      imageUrl: null,
       createdAt: new Date().toISOString(),
     };
     set((s) => ({ messages: [...s.messages, optimistic] }));

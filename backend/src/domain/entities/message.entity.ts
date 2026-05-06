@@ -6,7 +6,9 @@ export class Message {
     public content: string,
     public status: MessageStatus,
     public readonly createdAt: Date,
-    public updatedAt: Date
+    public updatedAt: Date,
+    public messageType: MessageType = MessageType.TEXT,
+    public imageUrl: string | null = null
   ) {}
 
   markAsDelivered(): void {
@@ -30,4 +32,9 @@ export enum MessageStatus {
   SENT = "sent",
   DELIVERED = "delivered",
   READ = "read",
+}
+
+export enum MessageType {
+  TEXT = "text",
+  IMAGE = "image",
 }

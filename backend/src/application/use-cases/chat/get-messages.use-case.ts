@@ -30,9 +30,8 @@ export class GetMessagesUseCase {
   ): Promise<MessageResponseDto[]> {
     const conversation = await this.conversationRepo.findById(conversationId);
     if (!conversation) throw new NotFoundException("Conversation not found");
-    if (!conversation.hasParticipant(userId)) {
+    if (!conversation.hasParticipant(userId))
       throw new ForbiddenException("Access denied");
-    }
 
     const beforeDate = before ? new Date(before) : undefined;
     const messages = await this.messageRepo.findByConversationId(
@@ -47,6 +46,8 @@ export class GetMessagesUseCase {
       senderId: m.senderId,
       content: m.content,
       status: m.status,
+      messageType: m.messageType,
+      imageUrl: m.imageUrl,
       createdAt: m.createdAt,
     }));
   }

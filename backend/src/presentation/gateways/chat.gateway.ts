@@ -112,7 +112,11 @@ export class ChatGateway implements OnGatewayConnection, OnGatewayDisconnect {
     const user = client.data.user as JwtPayload;
 
     try {
-      const message = await this.sendMessageUseCase.execute(user.sub, dto);
+      const message = await this.sendMessageUseCase.execute({
+        conversationId: dto.conversationId,
+        senderId: user.sub,
+        content: dto.content,
+      });
 
       // Broadcast to all participants in the conversation room
       this.server

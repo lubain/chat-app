@@ -4,6 +4,7 @@ import { LessThan, Repository } from "typeorm";
 import {
   Message,
   MessageStatus,
+  MessageType,
 } from "../../../domain/entities/message.entity";
 import { IMessageRepository } from "../../../domain/repositories/message.repository.interface";
 import { MessageOrmEntity } from "../entities/message.orm-entity";
@@ -27,26 +28,21 @@ export class MessageRepository implements IMessageRepository {
   ): Promise<Message[]> {
     const where: any = { conversationId };
     if (before) where.createdAt = LessThan(before);
-
     const rows = await this.repo.find({
       where,
       order: { createdAt: "DESC" },
       take: limit,
     });
-
-    // Return in chronological order
     return rows.reverse().map((r: MessageOrmEntity) => this.toDomain(r));
   }
 
   async save(message: Message): Promise<Message> {
-    const row = this.toOrm(message);
-    const saved = await this.repo.save(row);
+    const saved = await this.repo.save(this.toOrm(message));
     return this.toDomain(saved);
   }
 
   async update(message: Message): Promise<Message> {
-    const row = this.toOrm(message);
-    await this.repo.save(row);
+    await this.repo.save(this.toOrm(message));
     return message;
   }
 
@@ -66,10 +62,7 @@ export class MessageRepository implements IMessageRepository {
 
   async countUnread(conversationId: string, userId: string): Promise<number> {
     return this.repo.count({
-      where: {
-        conversationId,
-        status: MessageStatus.SENT as any,
-      },
+      where: { conversationId, status: MessageStatus.SENT as any },
     });
   }
 
@@ -81,7 +74,9 @@ export class MessageRepository implements IMessageRepository {
       row.content,
       row.status as MessageStatus,
       row.createdAt,
-      row.updatedAt
+      row.updatedAt,
+      (row.messageType as MessageType) ?? MessageType.TEXT,
+      row.imageUrl ?? null
     );
   }
 
@@ -92,6 +87,8 @@ export class MessageRepository implements IMessageRepository {
     row.senderId = message.senderId;
     row.content = message.content;
     row.status = message.status;
+    row.messageType = message.messageType;
+    row.imageUrl = message.imageUrl;
     return row;
   }
 }

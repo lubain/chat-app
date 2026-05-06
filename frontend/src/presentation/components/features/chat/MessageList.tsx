@@ -1,5 +1,5 @@
-import { useEffect, useRef } from "react";
-import { Check, CheckCheck } from "lucide-react";
+import { useEffect, useRef, useState } from "react";
+import { Check, CheckCheck, ZoomIn } from "lucide-react";
 import { ChatMessage, ChatContact } from "@/application/stores/useChatStore";
 import { useTypingStore } from "@/application/stores/useTypingStore";
 
@@ -9,7 +9,7 @@ interface MessageListProps {
   isOwnMessage: (senderId: string) => boolean;
 }
 
-/** Indicateur animé "en train d'écrire" (trois points qui rebondissent) */
+/** Indicateur "en train d'écrire" */
 function TypingIndicator({ contact }: { contact: ChatContact }) {
   return (
     <div className="flex justify-start items-end gap-2">
@@ -36,20 +36,72 @@ function TypingIndicator({ contact }: { contact: ChatContact }) {
   );
 }
 
+/** Lightbox pour afficher l'image en grand */
+function ImageLightbox({ src, onClose }: { src: string; onClose: () => void }) {
+  useEffect(() => {
+    const handler = (e: KeyboardEvent) => {
+      if (e.key === "Escape") onClose();
+    };
+    window.addEventListener("keydown", handler);
+    return () => window.removeEventListener("keydown", handler);
+  }, [onClose]);
+
+  return (
+    <div
+      className="fixed inset-0 z-50 bg-black/80 backdrop-blur-sm flex items-center justify-center p-4"
+      onClick={onClose}
+    >
+      <img
+        src={src}
+        alt="Image"
+        className="max-w-full max-h-[90vh] rounded-2xl shadow-2xl object-contain"
+        onClick={(e) => e.stopPropagation()}
+      />
+    </div>
+  );
+}
+
+/** Bulle de message image */
+function ImageBubble({ imageUrl, isMe }: { imageUrl: string; isMe: boolean }) {
+  const [lightboxOpen, setLightboxOpen] = useState(false);
+
+  return (
+    <>
+      <div
+        className={`relative group cursor-pointer rounded-2xl overflow-hidden shadow-sm max-w-[240px] ${
+          isMe ? "rounded-br-sm" : "rounded-bl-sm"
+        }`}
+        onClick={() => setLightboxOpen(true)}
+      >
+        <img
+          src={imageUrl}
+          alt="Image"
+          className="w-full h-auto max-h-[300px] object-cover"
+          loading="lazy"
+        />
+        {/* Overlay zoom */}
+        <div className="absolute inset-0 bg-black/0 group-hover:bg-black/20 transition-colors flex items-center justify-center">
+          <ZoomIn className="w-6 h-6 text-white opacity-0 group-hover:opacity-100 transition-opacity drop-shadow" />
+        </div>
+      </div>
+
+      {lightboxOpen && (
+        <ImageLightbox src={imageUrl} onClose={() => setLightboxOpen(false)} />
+      )}
+    </>
+  );
+}
+
 export function MessageList({
   messages,
   activeContact,
   isOwnMessage,
 }: MessageListProps) {
   const bottomRef = useRef<HTMLDivElement>(null);
-
-  // S'abonner uniquement au typing de la conversation active
   const getTypingUsers = useTypingStore((s) => s.getTypingUsers);
   const typingUsers = getTypingUsers(activeContact.id);
-  // On affiche l'indicateur si le participant de cette conversation tape
   const isContactTyping = typingUsers.includes(activeContact.participantId);
 
-  // Scroll vers le bas quand messages ou typing changent
   useEffect(() => {
     bottomRef.current?.scrollIntoView({ behavior: "smooth" });
   }, [messages, isContactTyping]);
@@ -64,6 +116,8 @@ export function MessageList({
 
       {messages.map((msg) => {
         const isMe = isOwnMessage(msg.senderId);
+        const isImage = msg.messageType === "image" && msg.imageUrl;
+
         return (
           <div
             key={msg.id}
@@ -81,15 +135,22 @@ export function MessageList({
                 isMe ? "items-end" : "items-start"
               }`}
             >
-              <div
-                className={`px-4 py-2.5 rounded-2xl shadow-sm ${
-                  isMe
-                    ? "bg-indigo-600 text-white rounded-br-sm"
-                    : "bg-white text-slate-800 border border-slate-100 rounded-bl-sm"
-                }`}
-              >
-                <p className="text-sm leading-relaxed">{msg.content}</p>
-              </div>
+              {/* ── Bulle ──────────────────────────────────── */}
+              {isImage ? (
+                <ImageBubble imageUrl={msg.imageUrl!} isMe={isMe} />
+              ) : (
+                <div
+                  className={`px-4 py-2.5 rounded-2xl shadow-sm ${
+                    isMe
+                      ? "bg-indigo-600 text-white rounded-br-sm"
+                      : "bg-white text-slate-800 border border-slate-100 rounded-bl-sm"
+                  }`}
+                >
+                  <p className="text-sm leading-relaxed">{msg.content}</p>
+                </div>
+              )}
+
+              {/* ── Heure + statut ─────────────────────────── */}
               <div className="flex items-center mt-1 space-x-1">
                 <span className="text-[10px] text-slate-400 font-medium">
                   {new Date(msg.createdAt).toLocaleTimeString([], {
@@ -111,7 +172,6 @@ export function MessageList({
         );
       })}
 
-      {/* Indicateur "en train d'écrire" */}
       {isContactTyping && (
         <div className="animate-in fade-in slide-in-from-bottom-2 duration-200">
           <TypingIndicator contact={activeContact} />

@@ -15,26 +15,20 @@ export class CloudinaryService {
     this.apiSecret = config.get<string>("CLOUDINARY_API_SECRET", "");
 
     if (!this.cloudName || !this.apiKey || !this.apiSecret) {
-      this.logger.warn(
-        "⚠️  Cloudinary not fully configured (CLOUD_NAME / API_KEY / API_SECRET)"
-      );
+      this.logger.warn("⚠️  Cloudinary not fully configured");
     }
   }
 
-  async uploadAvatar(base64Data: string, userId: string): Promise<string> {
+  async upload(base64Data: string, publicId: string): Promise<string> {
     if (!this.cloudName || !this.apiKey || !this.apiSecret) {
       throw new BadRequestException(
-        "Avatar upload not available: Cloudinary is not configured."
+        "Cloudinary is not configured on this server."
       );
     }
 
     const timestamp = Math.round(Date.now() / 1000).toString();
-    const publicId = `avatar_${userId.replace(/-/g, "")}`;
-    const folder = "chat-app-avatars";
 
-    // Signature HMAC-SHA1 sur les paramètres triés alphabétiquement
     const paramsToSign = [
-      `folder=${folder}`,
       `overwrite=true`,
       `public_id=${publicId}`,
       `timestamp=${timestamp}`,
@@ -54,11 +48,10 @@ export class CloudinaryService {
       timestamp,
       signature,
       public_id: publicId,
-      folder,
       overwrite: "true",
     });
 
-    this.logger.log(`Uploading avatar (signed) for user ${userId}...`);
+    this.logger.log(`Uploading image (public_id: ${publicId})...`);
 
     let response: Response;
     try {
@@ -81,7 +74,17 @@ export class CloudinaryService {
     }
 
     const data = (await response.json()) as { secure_url: string };
-    this.logger.log(`Avatar uploaded: ${data.secure_url}`);
+    this.logger.log(`Uploaded: ${data.secure_url}`);
     return data.secure_url;
+  }
+
+  uploadAvatar(base64Data: string, userId: string): Promise<string> {
+    const publicId = `avatar_${userId.replace(/-/g, "")}`;
+    return this.upload(base64Data, publicId);
+  }
+
+  uploadMessageImage(base64Data: string, messageId: string): Promise<string> {
+    const publicId = `msg_${messageId.replace(/-/g, "")}`;
+    return this.upload(base64Data, publicId);
   }
 }
