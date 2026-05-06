@@ -31,6 +31,7 @@ export function useUpdateProfile(): UseUpdateProfileResult {
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const updateUser = useAuthStore((s) => s.updateUser);
+  const clearError = useCallback(() => setError(null), []);
 
   /** Valide le fichier et génère la preview locale — sans uploader */
   const prepareAvatar = useCallback((file: File) => {
@@ -85,6 +86,6 @@ export function useUpdateProfile(): UseUpdateProfileResult {
     error,
     prepareAvatar,
     saveProfile,
-    clearError: () => setError(null),
+    clearError,
   };
 }
