@@ -1,6 +1,7 @@
 import { useState, useCallback } from "react";
-import { authApi } from "../../infrastructure/api/auth.api";
-import { useAuthStore } from "../stores/useAuthStore";
+import { HttpError } from "@/infrastructure/api/http-client";
+import { authApi } from "@/infrastructure/api/auth.api";
+import { useAuthStore } from "@/application/stores/useAuthStore";
 
 export interface ProfileDraft {
   name: string;
@@ -31,7 +32,6 @@ export function useUpdateProfile(): UseUpdateProfileResult {
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const updateUser = useAuthStore((s) => s.updateUser);
-  const clearError = useCallback(() => setError(null), []);
 
   /** Valide le fichier et génère la preview locale — sans uploader */
   const prepareAvatar = useCallback((file: File) => {
@@ -71,8 +71,12 @@ export function useUpdateProfile(): UseUpdateProfileResult {
 
         if (updated) updateUser(updated);
         return true;
-      } catch (err: any) {
-        setError(err.messages?.[0] ?? "Impossible d'enregistrer le profil.");
+      } catch (err) {
+        setError(
+          err instanceof HttpError
+            ? err.messages[0]
+            : "Impossible d'enregistrer le profil."
+        );
         return false;
       } finally {
         setIsLoading(false);
@@ -86,6 +90,6 @@ export function useUpdateProfile(): UseUpdateProfileResult {
     error,
     prepareAvatar,
     saveProfile,
-    clearError,
+    clearError: () => setError(null),
   };
 }

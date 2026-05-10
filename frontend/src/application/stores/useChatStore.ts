@@ -83,8 +83,8 @@ function toMessage(m: MessageResponse): ChatMessage {
     senderId: m.senderId,
     content: m.content,
     status: m.status,
-    messageType: (m as any).messageType ?? "text",
-    imageUrl: (m as any).imageUrl ?? null,
+    messageType: m.messageType ?? "text",
+    imageUrl: m.imageUrl ?? null,
     createdAt: m.createdAt,
   };
 }

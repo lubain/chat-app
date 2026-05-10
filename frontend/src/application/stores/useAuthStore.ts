@@ -1,4 +1,5 @@
 import { create } from "zustand";
+import { HttpError } from "@/infrastructure/api/http-client";
 import { authApi, AuthResponse, AuthUser } from "@/infrastructure/api/auth.api";
 import {
   connectSocket,
@@ -64,8 +65,9 @@ export const useAuthStore = create<AuthState>((set) => ({
         token: response.accessToken,
         isLoading: false,
       });
-    } catch (err: any) {
-      const message = err.messages?.[0] ?? err.message ?? "Login failed";
+    } catch (err) {
+      const message =
+        err instanceof HttpError ? err.messages[0] : "Login failed";
       set({ error: message, isLoading: false });
       throw err;
     }
@@ -82,8 +84,9 @@ export const useAuthStore = create<AuthState>((set) => ({
         token: response.accessToken,
         isLoading: false,
       });
-    } catch (err: any) {
-      const message = err.messages?.[0] ?? err.message ?? "Registration failed";
+    } catch (err) {
+      const message =
+        err instanceof HttpError ? err.messages[0] : "Registration failed";
       set({ error: message, isLoading: false });
       throw err;
     }

@@ -3,8 +3,8 @@ import { X, Camera, Loader2, Check, AlertCircle, User } from "lucide-react";
 import {
   useUpdateProfile,
   ProfileDraft,
-} from "../../../application/hooks/useUpdateProfile";
-import { useAuth } from "../../../application/hooks/useAuth";
+} from "@/application/hooks/useUpdateProfile";
+import { useAuth } from "@/application/hooks/useAuth";
 
 interface ProfileModalProps {
   isOpen: boolean;
@@ -34,6 +34,7 @@ export function ProfileModal({ isOpen, onClose }: ProfileModalProps) {
     }
   }, [isOpen, user, clearError]);
 
+  // ── Annuler : remettre le draft à l'état initial ─────────────────────────
   const handleCancel = useCallback(() => {
     if (draft.avatarPreview) URL.revokeObjectURL(draft.avatarPreview);
     onClose();
@@ -52,7 +53,7 @@ export function ProfileModal({ isOpen, onClose }: ProfileModalProps) {
   if (!isOpen || !user) return null;
 
   const hasChanges =
-    draft.name.trim() !== user.name || draft.avatarFile !== null;
+    !!user && (draft.name.trim() !== user.name || draft.avatarFile !== null);
 
   const avatarSrc =
     draft.avatarPreview ??
@@ -78,7 +79,6 @@ export function ProfileModal({ isOpen, onClose }: ProfileModalProps) {
     }));
   };
 
-  // ── Annuler : remettre le draft à l'état initial ─────────────────────────
   // ── Enregistrer : envoyer tout en une fois ───────────────────────────────
   const handleSave = async () => {
     if (!hasChanges) {

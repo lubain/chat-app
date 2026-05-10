@@ -1,4 +1,5 @@
 import { useState, useEffect, useRef, useCallback } from "react";
+import { HttpError } from "@/infrastructure/api/http-client";
 import {
   usersApi,
   UserSearchResult,
@@ -45,10 +46,17 @@ export function useUserSearch(debounceMs = 300): UseUserSearchResult {
     try {
       const data = await promise;
       setResults(data);
-    } catch (err: any) {
+    } catch (err) {
       // Ignore abort errors (user kept typing)
-      if (err?.code !== "ERR_CANCELED" && err?.name !== "AbortError") {
-        setError("Recherche impossible. Réessayez.");
+      const isAbort =
+        err instanceof Error &&
+        (err.name === "AbortError" || err.message.includes("canceled"));
+      if (!isAbort) {
+        setError(
+          err instanceof HttpError
+            ? err.messages[0]
+            : "Recherche impossible. Réessayez."
+        );
         setResults([]);
       }
     } finally {

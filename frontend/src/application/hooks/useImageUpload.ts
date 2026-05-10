@@ -1,6 +1,7 @@
 import { useState, useCallback, useRef } from "react";
-import { conversationApi } from "../../infrastructure/api/conversation.api";
-import { useChatStore } from "../stores/useChatStore";
+import { HttpError } from "@/infrastructure/api/http-client";
+import { conversationApi } from "@/infrastructure/api/conversation.api";
+import { useChatStore } from "@/application/stores/useChatStore";
 
 function fileToBase64(file: File): Promise<string> {
   return new Promise((resolve, reject) => {
@@ -80,8 +81,8 @@ export function useImageUpload(
 
       receiveMessage({
         ...message,
-        messageType: (message as any).messageType ?? "image",
-        imageUrl: (message as any).imageUrl ?? null,
+        messageType: message.messageType ?? "image",
+        imageUrl: message.imageUrl ?? null,
         createdAt:
           typeof message.createdAt === "string"
             ? message.createdAt
@@ -91,8 +92,12 @@ export function useImageUpload(
       // Nettoyage après envoi réussi
       URL.revokeObjectURL(pendingImage.preview);
       setPendingImage(null);
-    } catch (err: any) {
-      setError(err.messages?.[0] ?? "Impossible d'envoyer l'image.");
+    } catch (err) {
+      setError(
+        err instanceof HttpError
+          ? err.messages[0]
+          : "Impossible d'envoyer l'image."
+      );
     } finally {
       setIsUploading(false);
     }
