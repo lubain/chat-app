@@ -1,5 +1,5 @@
 import { useState, useRef, useEffect } from "react";
-import { Search, Lock, X, Loader2, UserPlus, Users } from "lucide-react";
+import { Search, LogOut, X, Loader2, UserPlus, Users } from "lucide-react";
 import { ChatContact } from "@/application/stores/useChatStore";
 import { UserSearchResult } from "@/infrastructure/api/conversation.api";
 import { useUserSearch } from "@/application/hooks/useUserSearch";
@@ -91,7 +91,7 @@ export function ContactList({
           title="Déconnexion"
           className="p-2 text-slate-400 hover:text-red-500 hover:bg-red-50 rounded-full transition-colors"
         >
-          <Lock className="w-5 h-5" />
+          <LogOut className="w-5 h-5" />
         </button>
       </div>
 
